@@ -8,3 +8,4 @@
 - [x] 竞价排名实现
 - [x] 数据聚合
 - [x] 拼音自动补全
+- [x] 使用RabbitMQ实现Elasticsearch和mysql数据同步
