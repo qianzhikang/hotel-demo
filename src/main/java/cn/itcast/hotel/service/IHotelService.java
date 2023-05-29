@@ -18,8 +18,15 @@ public interface IHotelService extends IService<Hotel> {
 
 
     /**
-     *
+     * 查询列表并过滤
      * @return
      */
     Map<String, List<String>> filters(RequestParams requestParams);
+
+    /**
+     * 自动补全搜索结果
+     * @param key 关键字
+     * @return 补全结果
+     */
+    List<String> suggestion(String key);
 }

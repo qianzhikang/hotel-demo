@@ -31,6 +31,10 @@ import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.SuggestBuilder;
+import org.elasticsearch.search.suggest.SuggestBuilders;
+import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -189,9 +193,9 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             // 解析结果
             Map<String, List<String>> map = new HashMap<>();
             Aggregations aggregations = response.getAggregations();
-            List<String> brandList = getStrings(aggregations,"brandAgg");
-            List<String> cityAggList = getStrings(aggregations,"cityAgg");
-            List<String> starNameAggList = getStrings(aggregations,"starNameAgg");
+            List<String> brandList = getStrings(aggregations, "brandAgg");
+            List<String> cityAggList = getStrings(aggregations, "cityAgg");
+            List<String> starNameAggList = getStrings(aggregations, "starNameAgg");
             map.put("brand", brandList);
             map.put("city", cityAggList);
             map.put("starName", starNameAggList);
@@ -202,7 +206,41 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
 
     }
 
-    private List<String> getStrings(Aggregations aggregations,String aggName) {
+    /**
+     * 自动补全搜索结果
+     *
+     * @param key 关键字
+     * @return 补全结果
+     */
+    @Override
+    public List<String> suggestion(String key) {
+        // 结果
+        List<String> result = new ArrayList<>();
+
+        SearchRequest request = new SearchRequest("hotel");
+        request.source().suggest(new SuggestBuilder().addSuggestion("suggestions",
+                SuggestBuilders.completionSuggestion("suggestion")
+                        .prefix(key)
+                        .skipDuplicates(true)
+                        .size(10)));
+        try {
+            // 查询
+            SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+            // 结果解析
+            Suggest suggest = search.getSuggest();
+            CompletionSuggestion suggestion = suggest.getSuggestion("suggestions");
+            List<CompletionSuggestion.Entry.Option> options = suggestion.getOptions();
+            for (CompletionSuggestion.Entry.Option option : options) {
+                result.add(option.getText().toString());
+            }
+            return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private List<String> getStrings(Aggregations aggregations, String aggName) {
         Terms aggTerms = aggregations.get(aggName);
         List<? extends Terms.Bucket> buckets = aggTerms.getBuckets();
         List<String> list = new ArrayList<>();

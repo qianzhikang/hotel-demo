@@ -2,6 +2,13 @@ package cn.itcast.hotel.pojo;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.lucene.util.CollectionUtil;
+import org.springframework.util.CollectionUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -23,7 +30,8 @@ public class HotelDoc {
     private Object distance;
 
     private Boolean isAD;
-
+    /** 自动补全内容 */
+    private List<String> suggestion;
     public HotelDoc(Hotel hotel) {
         this.id = hotel.getId();
         this.name = hotel.getName();
@@ -36,5 +44,15 @@ public class HotelDoc {
         this.business = hotel.getBusiness();
         this.location = hotel.getLatitude() + ", " + hotel.getLongitude();
         this.pic = hotel.getPic();
+        // business有多个值的情况
+        if (this.business.contains("/")){
+            String[] split = this.business.split("/");
+            this.suggestion = new ArrayList<>();
+            this.suggestion.add(this.brand);
+            // 添加所有的split
+            Collections.addAll(this.suggestion,split);
+        }else {
+            this.suggestion = Arrays.asList(this.brand,this.business);
+        }
     }
 }
