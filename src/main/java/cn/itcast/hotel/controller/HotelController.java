@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @Description 酒店控制器
@@ -24,5 +26,10 @@ public class HotelController {
     @PostMapping("/list")
     public PageResult search(@RequestBody RequestParams requestParams) throws IOException {
         return iHotelService.search(requestParams);
+    }
+
+    @PostMapping("/filters")
+    public Map<String, List<String>> filters(@RequestBody RequestParams requestParams) throws IOException {
+        return iHotelService.filters(requestParams);
     }
 }

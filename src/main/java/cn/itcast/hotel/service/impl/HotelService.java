@@ -24,6 +24,10 @@ import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
@@ -31,8 +35,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -125,6 +128,91 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         }
     }
 
+
+    @Override
+    public Map<String, List<String>> filters(RequestParams requestParams) {
+        SearchRequest request = new SearchRequest("hotel");
+        // 结合查询条件
+        // 多个搜索条件用 boolQuery
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        String key = requestParams.getKey();
+        // 搜索框关键字检索条件
+        if (StringUtils.isNotBlank(key)) {
+            // must 表示必须含有
+            boolQuery.must(QueryBuilders.matchQuery("all", key));
+        } else {
+            // 没有参数则搜索全部
+            boolQuery.must(QueryBuilders.matchAllQuery());
+        }
+        // 城市条件
+        if (StringUtils.isNotBlank(requestParams.getCity())) {
+            // 精确匹配使用 termQuery
+            boolQuery.filter(QueryBuilders.termQuery("city", requestParams.getCity()));
+        }
+        // 品牌条件
+        if (StringUtils.isNotBlank(requestParams.getBrand())) {
+            boolQuery.filter(QueryBuilders.termQuery("brand", requestParams.getBrand()));
+        }
+        // 星级条件
+        if (StringUtils.isNotBlank(requestParams.getStarName())) {
+            boolQuery.filter(QueryBuilders.termQuery("starName", requestParams.getStarName()));
+        }
+        // 价格区间条件
+        if (requestParams.getMinPrice() != null && requestParams.getMaxPrice() != null) {
+            // 范围匹配使用 rangeQuery
+            boolQuery.filter(QueryBuilders.rangeQuery("price").gte(requestParams.getMinPrice()).lte(requestParams.getMaxPrice()));
+        }
+        request.source().query(boolQuery);
+        // 不要文档信息
+        request.source().size(0);
+        // 品牌聚合
+        request.source().aggregation(AggregationBuilders
+                .terms("brandAgg")
+                .field("brand")
+                .size(100)
+        );
+        // 城市聚合
+        request.source().aggregation(AggregationBuilders
+                .terms("cityAgg")
+                .field("city")
+                .size(100)
+        );
+        // 星级聚合
+        request.source().aggregation(AggregationBuilders
+                .terms("starNameAgg")
+                .field("starName")
+                .size(100)
+        );
+        try {
+            // 聚合搜索
+            SearchResponse response = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+            // 解析结果
+            Map<String, List<String>> map = new HashMap<>();
+            Aggregations aggregations = response.getAggregations();
+            List<String> brandList = getStrings(aggregations,"brandAgg");
+            List<String> cityAggList = getStrings(aggregations,"cityAgg");
+            List<String> starNameAggList = getStrings(aggregations,"starNameAgg");
+            map.put("brand", brandList);
+            map.put("city", cityAggList);
+            map.put("starName", starNameAggList);
+            return map;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private List<String> getStrings(Aggregations aggregations,String aggName) {
+        Terms aggTerms = aggregations.get(aggName);
+        List<? extends Terms.Bucket> buckets = aggTerms.getBuckets();
+        List<String> list = new ArrayList<>();
+        for (Terms.Bucket bucket : buckets) {
+            String key = bucket.getKeyAsString();
+            list.add(key);
+        }
+        return list;
+    }
+
     /**
      * 单个搜索条件
      */
@@ -159,7 +247,7 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             Object[] sortValues = item.getSortValues();
 
             // 获取距离排序结果中的距离值
-            if (sortValues.length > 0){
+            if (sortValues.length > 0) {
                 Object sortValue = sortValues[0];
                 hotelDoc.setDistance(sortValue);
             }
