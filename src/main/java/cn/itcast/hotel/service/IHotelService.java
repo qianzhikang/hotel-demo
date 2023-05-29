@@ -29,4 +29,18 @@ public interface IHotelService extends IService<Hotel> {
      * @return 补全结果
      */
     List<String> suggestion(String key);
+
+    /**
+     * 向es中插入数据
+     * @param id
+     */
+    void insertById(Long id);
+
+
+
+    /**
+     * 从es中删除数据
+     * @param id
+     */
+    void deleteById(Long id);
 }

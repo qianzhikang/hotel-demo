@@ -11,12 +11,16 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.queryparser.xml.builders.BooleanQueryBuilder;
 import org.apache.lucene.search.BooleanQuery;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.DistanceUnit;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.Index;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -234,6 +238,43 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
                 result.add(option.getText().toString());
             }
             return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    /**
+     * 向es中插入数据
+     *
+     * @param id
+     */
+    @Override
+    public void insertById(Long id) {
+        // 查询hotel数据
+        Hotel byId = getById(id);
+        HotelDoc hotelDoc = new HotelDoc(byId);
+        // 插入es
+        IndexRequest request = new IndexRequest("hotel").id(id.toString());
+        request.source(JSON.toJSONString(hotelDoc), XContentType.JSON);
+        try {
+            restHighLevelClient.index(request,RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    /**
+     * 从es中删除数据
+     *
+     * @param id
+     */
+    @Override
+    public void deleteById(Long id) {
+        DeleteRequest request = new DeleteRequest("hotel",id.toString());
+        try {
+            restHighLevelClient.delete(request,RequestOptions.DEFAULT);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
